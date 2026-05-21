@@ -1,0 +1,1535 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 팀별 관리이익 대시보드 | 애드이피션시</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;900&amp;family=DM+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+  :root {
+    --purple: #6B3FA0; --purple-light: #9B6FD0; --purple-pale: #EDE5F8; --purple-deep: #3D1A6E;
+    --orange: #F47B20; --orange-light: #F9A55A; --orange-pale: #FEF0E3;
+    --red: #E03E3E; --red-pale: #FDEAEA;
+    --green: #2E7D32; --green-pale: #E8F5E9;
+    --bg: #F5F3FA; --surface: #FFFFFF; --surface2: #FAF8FE; --border: #E4DCF5;
+    --text-primary: #1A0A33; --text-secondary: #6B5B8A; --text-muted: #A090C0;
+    --kpi-line: #E03E3E;
+    --shadow: 0 2px 16px rgba(107,63,160,0.08); --shadow-lg: 0 8px 40px rgba(107,63,160,0.15);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text-primary); min-height: 100vh; }
+
+  /* ── HEADER ── */
+  .header { background: linear-gradient(135deg, var(--purple-deep) 0%, var(--purple) 60%, var(--purple-light) 100%); padding: 28px 40px 24px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 24px rgba(61,26,110,0.3); }
+  .header-left h1 { font-size: 22px; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
+  .header-left p { font-size: 12px; color: rgba(255,255,255,0.65); margin-top: 4px; font-family: 'DM Mono', monospace; }
+  .header-badge { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 8px 18px; text-align: center; }
+  .header-badge .kpi-val { font-size: 20px; font-weight: 800; color: var(--orange-light); font-family: 'DM Mono', monospace; }
+  .header-badge .kpi-label { font-size: 10px; color: rgba(255,255,255,0.7); margin-top: 2px; }
+
+  /* ── CONTROLS ── */
+  .controls-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 40px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(107,63,160,0.06); }
+  .control-group { display: flex; align-items: center; gap: 10px; }
+  .control-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+  .month-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+  .month-btn { padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px; background: transparent; font-size: 13px; font-weight: 500; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; font-family: 'Noto Sans KR', sans-serif; }
+  .month-btn:hover { background: var(--purple-pale); color: var(--purple); border-color: var(--purple-light); }
+  .month-btn.active { background: var(--purple); color: #fff; border-color: var(--purple); font-weight: 700; }
+  .toggle-tabs { display: flex; background: var(--bg); border-radius: 8px; padding: 3px; border: 1px solid var(--border); }
+  .toggle-btn { padding: 5px 14px; border: none; border-radius: 6px; background: transparent; font-size: 12px; font-weight: 500; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; font-family: 'Noto Sans KR', sans-serif; }
+  .toggle-btn.active { background: var(--surface); color: var(--purple); font-weight: 700; box-shadow: 0 1px 6px rgba(107,63,160,0.12); }
+  .controls-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .storage-badge { font-size: 11px; color: var(--green); background: var(--green-pale); border: 1px solid #A5D6A7; border-radius: 6px; padding: 3px 8px; font-weight: 600; display: none; }
+  .btn-reset { padding: 6px 12px; background: transparent; color: var(--text-secondary); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; transition: all 0.2s; }
+  .btn-reset:hover { border-color: var(--red); color: var(--red); }
+  .btn-upload { padding: 7px 16px; background: var(--purple); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; display: flex; align-items: center; gap: 6px; transition: all 0.2s; }
+  .btn-upload:hover { background: var(--purple-deep); }
+  .btn-export { padding: 6px 14px; background: transparent; color: var(--purple); border: 1.5px solid var(--purple); border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; transition: all 0.2s; display:flex; align-items:center; gap:5px; }
+  .btn-export:hover { background: var(--purple-pale); }
+
+  /* ── MAIN ── */
+  .main { padding: 28px 40px; display: flex; flex-direction: column; gap: 28px; }
+  .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .section-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .section-title { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+  .section-sub { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+  .card { background: var(--surface); border-radius: 16px; padding: 24px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+  .table-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .team-table-wrap { overflow-x: auto; }
+  table.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.data-table th { background: var(--purple-pale); color: var(--purple-deep); font-weight: 700; padding: 10px 12px; text-align: left; font-size: 12px; letter-spacing: 0.3px; border-bottom: 2px solid var(--purple-light); }
+  table.data-table th:last-child { text-align: right; }
+  table.data-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text-primary); }
+  table.data-table td:last-child { text-align: right; font-family: 'DM Mono', monospace; font-size: 13px; }
+  table.data-table tr:hover td { background: var(--purple-pale); }
+  .row-below td { color: var(--red) !important; }
+  .row-below td:last-child { font-weight: 700; }
+  .red-badge { display: inline-block; background: var(--red-pale); color: var(--red); border: 1px solid #FBCFCF; border-radius: 4px; padding: 1px 7px; font-size: 10px; font-weight: 700; margin-left: 6px; vertical-align: middle; }
+  .green-badge { display: inline-block; background: var(--green-pale); color: var(--green); border: 1px solid #A5D6A7; border-radius: 4px; padding: 1px 7px; font-size: 10px; font-weight: 700; margin-left: 6px; vertical-align: middle; }
+  .dept-row td:first-child { font-weight: 700; color: var(--purple-deep); }
+  .chart-card { position: relative; }
+  .chart-container { position: relative; height: 320px; }
+  .chart-container-sm { position: relative; height: 260px; }
+  .chart-container-tall { position: relative; height: 360px; }
+  .kpi-legend { display: flex; align-items: center; gap: 18px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .legend-line { width: 20px; height: 2px; border-radius: 2px; }
+  .legend-dash { width: 20px; height: 2px; background: repeating-linear-gradient(90deg, var(--kpi-line) 0,var(--kpi-line) 4px,transparent 4px,transparent 8px); }
+  .trend-controls { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
+  .trend-select { padding: 7px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); font-size: 13px; color: var(--text-primary); font-family: 'Noto Sans KR', sans-serif; cursor: pointer; outline: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 7L11 1' stroke='%236B5B8A' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 32px; }
+  .trend-select:focus { border-color: var(--purple); }
+  .summary-cards { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; margin-bottom: 8px; }
+  .summary-card { background: linear-gradient(135deg, var(--purple-pale), #fff); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; text-align: center; }
+  .summary-card.highlight { background: linear-gradient(135deg, var(--orange-pale), #fff); }
+  .summary-dept { font-size: 12px; font-weight: 700; color: var(--purple-deep); margin-bottom: 6px; }
+  .summary-val { font-size: 15px; font-weight: 800; color: var(--purple); font-family: 'DM Mono', monospace; }
+  .summary-card.highlight .summary-val { color: var(--orange); }
+
+  /* ── MODAL ── */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(30,10,60,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(3px); }
+  .modal-box { background: var(--surface); border-radius: 20px; width: 600px; max-width: 96vw; max-height: 92vh; overflow-y: auto; box-shadow: var(--shadow-lg); border: 1px solid var(--border); display: flex; flex-direction: column; }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .modal-header h3 { font-size: 16px; font-weight: 700; color: var(--purple-deep); }
+  .modal-close-btn { background: none; border: none; font-size: 18px; color: var(--text-muted); cursor: pointer; padding: 2px 6px; border-radius: 6px; line-height: 1; }
+  .modal-close-btn:hover { background: var(--purple-pale); color: var(--purple); }
+  .modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .form-row { display: flex; align-items: center; gap: 12px; }
+  .form-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); white-space: nowrap; }
+  .form-select { padding: 7px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-family: 'Noto Sans KR', sans-serif; color: var(--text-primary); background: var(--surface); }
+  .form-select:focus { outline: none; border-color: var(--purple); }
+  .format-guide { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; font-size: 12px; color: var(--text-secondary); line-height: 1.8; }
+  .format-guide strong { color: var(--text-primary); font-size: 13px; }
+  .format-guide code { background: var(--purple-pale); color: var(--purple); padding: 1px 6px; border-radius: 4px; font-family: 'DM Mono', monospace; font-size: 11px; }
+  .drop-zone { border: 2px dashed var(--purple-light); border-radius: 12px; padding: 28px 20px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--purple-pale); }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: var(--purple); background: #e0d4f7; }
+  .drop-zone.has-file { border-color: var(--green); background: var(--green-pale); }
+  .drop-zone-icon { font-size: 30px; margin-bottom: 8px; }
+  .drop-zone-text { font-size: 14px; color: var(--text-secondary); }
+  .drop-zone-text span { color: var(--purple); font-weight: 700; }
+  .drop-zone.has-file .drop-zone-text { color: var(--green); font-weight: 600; }
+  .drop-zone-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+  /* 미리보기 - 업로드 테이블 */
+  .preview-section { display: flex; flex-direction: column; gap: 8px; }
+  .preview-header-row { display: flex; align-items: center; justify-content: space-between; }
+  .preview-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+  .preview-stats { font-size: 11px; color: var(--text-muted); }
+  .preview-table-wrap { max-height: 180px; overflow-y: auto; border-radius: 8px; border: 1px solid var(--border); }
+  .preview-table-wrap table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .preview-table-wrap th { background: var(--purple-pale); padding: 7px 10px; font-size: 11px; font-weight: 700; text-align: left; position: sticky; top: 0; color: var(--purple-deep); }
+  .preview-table-wrap td { padding: 5px 10px; border-bottom: 1px solid var(--border); }
+  .preview-table-wrap tr.new-team td { background: #FFF8E7; }
+  /* 제외 팀 섹션 */
+  .removed-section { background: #FFF5F5; border: 1px solid #FBCFCF; border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .removed-section-title { font-size: 12px; font-weight: 700; color: var(--red); display: flex; align-items: center; gap: 6px; }
+  .removed-section-desc { font-size: 11px; color: #c0392b; }
+  .removed-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+  .removed-pill { display: inline-flex; align-items: center; gap: 4px; background: var(--red-pale); color: var(--red); border: 1px solid #FBCFCF; border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 600; }
+  /* 공통 버튼 */
+  .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; border: none; transition: all 0.2s; }
+  .btn-primary { background: var(--purple); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: var(--purple-deep); }
+  .btn-primary:disabled { background: #ccc; color: #999; cursor: not-allowed; }
+  .btn-secondary { background: var(--surface); color: var(--text-secondary); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--purple); color: var(--purple); }
+  .btn-link { background: none; border: none; color: var(--purple); font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; text-decoration: underline; }
+  .status-pill { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+  .status-matched { background: var(--purple-pale); color: var(--purple); }
+  .status-new { background: #FFF3CD; color: #856404; }
+  /* ── TOAST ── */
+  .toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%); padding: 13px 24px; border-radius: 10px; font-size: 14px; font-weight: 500; z-index: 2000; box-shadow: 0 4px 20px rgba(0,0,0,0.2); white-space: nowrap; animation: toast-in 0.3s ease; }
+  .toast-success { background: #2E7D32; color: #fff; }
+  .toast-error { background: var(--red); color: #fff; }
+  .toast-info { background: var(--purple-deep); color: #fff; }
+  @keyframes toast-in { from { opacity:0; transform:translateX(-50%) translateY(8px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <h1>2026 연간 팀별 관리이익 대시보드</h1>
+    <p>ADEFFICIENCY · 팀별/본부별 순이익/n 모니터링</p>
+  </div>
+  <div class="header-badge">
+    <div class="kpi-val">13,000,000</div>
+    <div class="kpi-label">2026 연간 KPI 기준 (인당)</div>
+  </div>
+</div>
+
+<!-- CONTROLS -->
+<div class="controls-bar">
+  <div class="control-group">
+    <span class="control-label">조회 월</span>
+    <div class="month-tabs" id="month-tabs-container"><button class="month-btn" data-month="1">1월</button><button class="month-btn" data-month="2">2월</button><button class="month-btn" data-month="3">3월</button><button class="month-btn active" data-month="4">4월</button></div>
+  </div>
+  <div class="control-group">
+    <span class="control-label">기준</span>
+    <div class="toggle-tabs">
+      <button class="toggle-btn" data-mode="monthly">해당월</button>
+      <button class="toggle-btn active" data-mode="cumulative">누적 평균</button>
+    </div>
+  </div>
+  <div class="controls-right">
+    <span class="storage-badge" id="storage-badge" style="display: inline-block;">💾 저장된 데이터</span>
+    <button class="btn-export" id="btn-export">🔗 공유용 저장</button>
+    <button class="btn-reset" id="btn-reset">초기화</button>
+    <button class="btn-upload" id="btn-open-upload">📤 엑셀 업로드</button>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- 본부별 요약 -->
+  <div id="summary-section">
+    <div class="section-header">
+      <span class="section-dot" style="background:var(--orange)"></span>
+      <span class="section-title">본부별 관리이익/n 요약</span>
+      <span class="section-sub" id="summary-period-label">1~4월 누적평균</span>
+    </div>
+    <div id="summary-avg-bar" style="display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--purple-pale),#fff);border:1px solid var(--border);border-radius:10px;padding:10px 20px;margin-bottom:12px;">
+      <span style="font-size:12px;font-weight:600;color:var(--text-secondary);">전체 평균 관리이익/n</span>
+      <span id="summary-avg-val" style="font-size:17px;font-weight:800;color:var(--purple);font-family:'DM Mono',monospace;margin-left:6px;">11,127,878</span>
+      <span style="font-size:12px;color:var(--text-muted);">원</span>
+    </div>
+    <div class="summary-cards" id="summary-cards"><div class="summary-card ">
+      <div class="summary-dept">1본부</div>
+      <div class="summary-val">1,258만</div>
+    </div><div class="summary-card ">
+      <div class="summary-dept">2본부</div>
+      <div class="summary-val">614만</div>
+    </div><div class="summary-card ">
+      <div class="summary-dept">3본부</div>
+      <div class="summary-val">1,008만</div>
+    </div><div class="summary-card highlight">
+      <div class="summary-dept">4본부</div>
+      <div class="summary-val">1,449만</div>
+    </div><div class="summary-card ">
+      <div class="summary-dept">Global</div>
+      <div class="summary-val">731만</div>
+    </div><div class="summary-card highlight">
+      <div class="summary-dept">IP실</div>
+      <div class="summary-val">1,349만</div>
+    </div><div class="summary-card highlight">
+      <div class="summary-dept">PD실</div>
+      <div class="summary-val">1,381만</div>
+    </div></div>
+  </div>
+
+  <!-- 팀별 / 본부별 -->
+  <div class="table-grid">
+    <div class="card">
+      <div class="section-header">
+        <span class="section-dot" style="background:var(--purple)"></span>
+        <span class="section-title">팀별 관리이익/n</span>
+      </div>
+      <div class="team-table-wrap">
+        <table class="data-table">
+          <thead><tr><th>본부</th><th>팀 (담당자)</th><th>관리이익/n</th></tr></thead>
+          <tbody id="team-tbody"><tr class="row-below">
+      <td>1본부</td><td>본부 김수연<span class="red-badge">미달성</span></td><td>11,696,855</td>
+    </tr><tr class="row-below">
+      <td>1본부</td><td>본부 김지선<span class="red-badge">미달성</span></td><td>12,846,537</td>
+    </tr><tr class="row-below">
+      <td>1본부</td><td>본부 김로빈<span class="red-badge">미달성</span></td><td>8,917,820</td>
+    </tr><tr class="">
+      <td>1본부</td><td>본부 이명균<span class="green-badge">달성</span></td><td>19,187,768</td>
+    </tr><tr class="row-below">
+      <td>2본부</td><td>본부 김민형<span class="red-badge">미달성</span></td><td>7,982,711</td>
+    </tr><tr class="row-below">
+      <td>2본부</td><td>본부 이정석<span class="red-badge">미달성</span></td><td>3,766,848</td>
+    </tr><tr class="row-below">
+      <td>2본부</td><td>본부 정아연<span class="red-badge">미달성</span></td><td>4,783,078</td>
+    </tr><tr class="row-below">
+      <td>2본부</td><td>본부 심은주<span class="red-badge">미달성</span></td><td>8,030,628</td>
+    </tr><tr class="row-below">
+      <td>3본부</td><td>본부 정나윤<span class="red-badge">미달성</span></td><td>11,333,534</td>
+    </tr><tr class="row-below">
+      <td>3본부</td><td>본부 박정빈<span class="red-badge">미달성</span></td><td>11,418,887</td>
+    </tr><tr class="row-below">
+      <td>3본부</td><td>본부 한지나<span class="red-badge">미달성</span></td><td>7,723,529</td>
+    </tr><tr class="row-below">
+      <td>3본부</td><td>본부 장하늘<span class="red-badge">미달성</span></td><td>9,825,154</td>
+    </tr><tr class="">
+      <td>4본부</td><td>본부 이소영<span class="green-badge">달성</span></td><td>17,193,139</td>
+    </tr><tr class="">
+      <td>4본부</td><td>본부 최율산<span class="green-badge">달성</span></td><td>14,039,954</td>
+    </tr><tr class="row-below">
+      <td>4본부</td><td>본부 정진화<span class="red-badge">미달성</span></td><td>12,245,123</td>
+    </tr><tr class="row-below">
+      <td>Global</td><td>최성연<span class="red-badge">미달성</span></td><td>9,063,318</td>
+    </tr><tr class="row-below">
+      <td>Global</td><td>박은정<span class="red-badge">미달성</span></td><td>5,557,375</td>
+    </tr><tr class="">
+      <td>IP실</td><td>NG 권민철<span class="green-badge">달성</span></td><td>13,042,191</td>
+    </tr><tr class="row-below">
+      <td>IP실</td><td>NG 서영민<span class="red-badge">미달성</span></td><td>11,639,268</td>
+    </tr><tr class="">
+      <td>IP실</td><td>NG 이예슬<span class="green-badge">달성</span></td><td>15,794,706</td>
+    </tr><tr class="row-below">
+      <td>PD실</td><td>최선화<span class="red-badge">미달성</span></td><td>12,355,879</td>
+    </tr><tr class="row-below">
+      <td>PD실</td><td>권현희<span class="red-badge">미달성</span></td><td>8,596,622</td>
+    </tr><tr class="">
+      <td>PD실</td><td>김동환<span class="green-badge">달성</span></td><td>19,519,783</td>
+    </tr><tr class="">
+      <td>PD실</td><td>유안진<span class="green-badge">달성</span></td><td>14,749,822</td>
+    </tr></tbody>
+        </table>
+      </div>
+      <div class="kpi-legend">
+        <div class="legend-item"><div class="legend-dash"></div><span>KPI 기준 13,000,000원</span></div>
+        <div class="legend-item" style="color:var(--red);">미달성 항목</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-header">
+        <span class="section-dot" style="background:var(--orange)"></span>
+        <span class="section-title">본부별 관리이익/n</span>
+      </div>
+      <div class="team-table-wrap">
+        <table class="data-table">
+          <thead><tr><th>본부</th><th>관리이익/n</th><th>KPI 대비</th></tr></thead>
+          <tbody id="dept-tbody"><tr class="dept-row"><td>1본부</td><td>12,578,387</td><td><span style="color:var(--red);font-weight:700;">-42만</span></td></tr><tr class="dept-row"><td>2본부</td><td>6,140,816</td><td><span style="color:var(--red);font-weight:700;">-686만</span></td></tr><tr class="dept-row"><td>3본부</td><td>10,075,276</td><td><span style="color:var(--red);font-weight:700;">-292만</span></td></tr><tr class="dept-row"><td>4본부</td><td>14,492,739</td><td><span style="color:var(--purple);font-weight:700;">+149만</span></td></tr><tr class="dept-row"><td>Global</td><td>7,310,347</td><td><span style="color:var(--red);font-weight:700;">-569만</span></td></tr><tr class="dept-row"><td>IP실</td><td>13,492,055</td><td><span style="color:var(--purple);font-weight:700;">+49만</span></td></tr><tr class="dept-row"><td>PD실</td><td>13,805,526</td><td><span style="color:var(--purple);font-weight:700;">+81만</span></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 팀별 막대 차트 -->
+  <div class="card chart-card">
+    <div class="section-header">
+      <span class="section-dot" style="background:var(--purple)"></span>
+      <span class="section-title">팀별 관리이익/n 차트</span>
+      <span class="section-sub" id="team-chart-label">1~4월 누적평균</span>
+    </div>
+    <div class="chart-container"><canvas id="teamChart" style="box-sizing: border-box; display: block; height: 320px; width: 1775px;" width="1775" height="320"></canvas></div>
+    <div class="kpi-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div><span>KPI 달성</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div><span>KPI 미달</span></div>
+      <div class="legend-item"><div class="legend-dash"></div><span>KPI 기준선 (13,000,000원)</span></div>
+    </div>
+  </div>
+
+  <!-- 본부별 막대 차트 -->
+  <div class="card chart-card">
+    <div class="section-header">
+      <span class="section-dot" style="background:var(--orange)"></span>
+      <span class="section-title">본부별 관리이익/n 차트</span>
+      <span class="section-sub" id="dept-chart-label">1~4월 누적평균</span>
+    </div>
+    <div class="chart-container-sm"><canvas id="deptChart" style="box-sizing: border-box; display: block; height: 260px; width: 1775px;" width="1775" height="260"></canvas></div>
+    <div class="kpi-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div><span>본부별 관리이익/n</span></div>
+      <div class="legend-item"><div class="legend-line" style="background:var(--purple)"></div><span>본부 평균선</span></div>
+    </div>
+  </div>
+
+  <!-- 월별 추이 -->
+  <div class="card chart-card">
+    <div class="section-header">
+      <span class="section-dot" style="background:var(--purple-light)"></span>
+      <span class="section-title">월별 관리이익/n 추이</span>
+    </div>
+    <div class="trend-controls">
+      <div class="control-group">
+        <span class="control-label">보기</span>
+        <div class="toggle-tabs">
+          <button class="toggle-btn active" data-trend="monthly">해당월</button>
+          <button class="toggle-btn" data-trend="cumulative">누적 평균</button>
+        </div>
+      </div>
+      <div class="control-group">
+        <span class="control-label">구분</span>
+        <div class="toggle-tabs">
+          <button class="toggle-btn active" data-view="team">팀별</button>
+          <button class="toggle-btn" data-view="dept">본부별</button>
+        </div>
+      </div>
+      <div class="control-group">
+        <span class="control-label">대상</span>
+        <select class="trend-select" id="trend-filter"><option value="all">전체</option><option value="1본부 김수연">1본부 김수연</option><option value="1본부 김지선">1본부 김지선</option><option value="1본부 김로빈">1본부 김로빈</option><option value="1본부 김지혜">1본부 김지혜</option><option value="1본부 이명균">1본부 이명균</option><option value="2본부 김민형">2본부 김민형</option><option value="2본부 이정석">2본부 이정석</option><option value="2본부 정아연">2본부 정아연</option><option value="2본부 심은주">2본부 심은주</option><option value="3본부 정나윤">3본부 정나윤</option><option value="3본부 박정빈">3본부 박정빈</option><option value="3본부 한지나">3본부 한지나</option><option value="3본부 장하늘">3본부 장하늘</option><option value="4본부 이소영">4본부 이소영</option><option value="4본부 최율산">4본부 최율산</option><option value="4본부 정진화">4본부 정진화</option><option value="Global 최성연">Global 최성연</option><option value="Global 박은정">Global 박은정</option><option value="NG 권민철">NG 권민철</option><option value="NG 서영민">NG 서영민</option><option value="NG 이예슬">NG 이예슬</option><option value="PD 최선화">PD 최선화</option><option value="PD 권현희">PD 권현희</option><option value="PD 김동환">PD 김동환</option><option value="PD 유안진">PD 유안진</option></select>
+      </div>
+    </div>
+    <div class="chart-container-tall"><canvas id="trendChart" style="box-sizing: border-box; display: block; height: 360px; width: 1775px;" width="1775" height="360"></canvas></div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- ══════════════ UPLOAD MODAL ══════════════ -->
+<div id="upload-modal" class="modal-overlay" style="display: none;">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>📤 월별 데이터 업로드</h3>
+      <button class="modal-close-btn" id="modal-close-btn">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- 월 선택 -->
+      <div class="form-row">
+        <span class="form-label">업로드할 월</span>
+        <select class="form-select" id="upload-month-select">
+          <option value="1">1월</option><option value="2">2월</option>
+          <option value="3">3월</option><option value="4">4월</option>
+          <option value="5">5월</option><option value="6">6월</option>
+          <option value="7">7월</option><option value="8">8월</option>
+          <option value="9">9월</option><option value="10">10월</option>
+          <option value="11">11월</option><option value="12">12월</option>
+        </select>
+        <span style="font-size:12px;color:var(--text-muted);">해당 월 데이터를 교체합니다</span>
+      </div>
+
+      <!-- 서식 안내 -->
+      <div class="format-guide">
+        <strong>엑셀 서식 안내</strong><br>
+        1행(헤더): <code>본부</code>&nbsp;&nbsp;<code>팀</code>&nbsp;&nbsp;<code>관리이익/n</code><br>
+        2행~: 담당자별 데이터 · 팀명은 기존과 동일하게 입력<br>
+        <span style="color:var(--orange);font-size:11px;">※ 엑셀에 없는 기존 팀은 해당 월부터 자동으로 제외됩니다</span>
+      </div>
+
+      <!-- 파일 드롭존 -->
+      <div class="drop-zone has-file" id="drop-zone" tabindex="0">
+        <input type="file" id="file-input" accept=".xlsx,.xls" style="display:none;">
+        <div class="drop-zone-icon" id="drop-icon">✅</div>
+        <div class="drop-zone-text" id="drop-text"><strong>adeff_관리이익_서식 (1).xlsx</strong></div>
+        <div class="drop-zone-hint" id="drop-hint">24개 행 인식됨</div>
+      </div>
+
+      <!-- ── 업로드 미리보기 (업로드 테이블) ── -->
+      <div class="preview-section" id="preview-section" style="display: block;">
+        <div class="preview-header-row">
+          <span class="preview-label">📋 파일 미리보기</span>
+          <span class="preview-stats" id="preview-stats">기존 24명 갱신 · 1명 제외</span>
+        </div>
+        <div class="preview-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>본부</th><th>팀</th>
+                <th style="text-align:right;">관리이익/n</th><th>상태</th>
+              </tr>
+            </thead>
+            <tbody id="preview-tbody"><tr class="">
+      <td>1본부</td><td>1본부 김수연</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">10,325,656</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr><tr class="">
+      <td>1본부</td><td>1본부 김지선</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">12,431,779</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr><tr class="">
+      <td>1본부</td><td>1본부 김로빈</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">5,951,260</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr><tr class="">
+      <td>1본부</td><td>1본부 이명균</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">16,562,516</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr><tr class="">
+      <td>2본부</td><td>2본부 김민형</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">1,525,248</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr><tr class="">
+      <td>2본부</td><td>2본부 이정석</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">1,296,642</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr><tr class="">
+      <td>2본부</td><td>2본부 정아연</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">1,364,930</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr><tr class="">
+      <td>2본부</td><td>2본부 심은주</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">7,517,966</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr><tr class="">
+      <td>3본부</td><td>3본부 정나윤</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">11,177,019</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr><tr class="">
+      <td>3본부</td><td>3본부 박정빈</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">6,993,704</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr><tr class="">
+      <td>3본부</td><td>3본부 한지나</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">8,778,008</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr><tr class="">
+      <td>3본부</td><td>3본부 장하늘</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">12,542,795</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr><tr class="">
+      <td>4본부</td><td>4본부 이소영</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">20,809,884</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr><tr class="">
+      <td>4본부</td><td>4본부 최율산</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">10,590,961</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr><tr class="">
+      <td>4본부</td><td>4본부 정진화</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">11,187,178</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr><tr class="">
+      <td>Global</td><td>Global 최성연</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">7,423,696</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr><tr class="">
+      <td>Global</td><td>Global 박은정</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">6,045,809</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr><tr class="">
+      <td>IP실</td><td>NG 권민철</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">14,145,162</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr><tr class="">
+      <td>IP실</td><td>NG 서영민</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">4,158,588</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr><tr class="">
+      <td>IP실</td><td>NG 이예슬</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">14,241,638</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr><tr class="">
+      <td>PD실</td><td>PD 최선화</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">13,838,263</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr><tr class="">
+      <td>PD실</td><td>PD 권현희</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">7,512,280</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr><tr class="">
+      <td>PD실</td><td>PD 김동환</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">22,440,572</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr><tr class="">
+      <td>PD실</td><td>PD 유안진</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">12,888,594</td>
+      <td><span class="status-pill status-matched">✅ 기존</span></td>
+    </tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── 제외 팀 섹션 (이번 달부터 빠지는 팀) ── -->
+      <div class="removed-section" id="removed-section" style="display: flex;">
+        <div class="removed-section-title">
+          ⚠ 이번 업로드에서 제외되는 팀
+        </div>
+        <div class="removed-section-desc">
+          아래 팀은 엑셀에 없어 <strong id="removed-month-label">4월</strong>부터 대시보드에서 숨겨집니다.<br>
+          이전 월 데이터는 그대로 보존됩니다.
+        </div>
+        <div class="removed-pills" id="removed-pills"><span class="removed-pill">✕ 1본부 김지혜</span></div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn-link" id="btn-template-download">📥 서식 다운로드</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" id="btn-cancel-upload">취소</button>
+        <button class="btn btn-primary" id="btn-confirm-upload">업로드 확인</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" style="display: none;" class="toast toast-success">4월 업로드 완료 — 24명 갱신 · 1명 제외</div>
+
+<script>
+// ══════════════════════════════════════════════
+// KPI & STORAGE KEY
+// ══════════════════════════════════════════════
+const KPI = 13000000;
+const STORAGE_KEY = 'adeff_2026_export_1779269234409';
+
+// ══════════════════════════════════════════════
+// DEFAULT DATA (원본 고정값)
+// ══════════════════════════════════════════════
+const DEFAULT_TEAM_MONTHLY = [
+  {
+    "dept": "1본부",
+    "team": "1본부 김수연",
+    "vals": [
+      11055704.07,
+      13460979.98,
+      11945079.25,
+      10325655.781696362
+    ]
+  },
+  {
+    "dept": "1본부",
+    "team": "1본부 김지선",
+    "vals": [
+      10630131.89,
+      14444590.68,
+      13879645.14,
+      12431779.349936651
+    ]
+  },
+  {
+    "dept": "1본부",
+    "team": "1본부 김로빈",
+    "vals": [
+      10948333.98,
+      8640779.64,
+      10130907.5,
+      5951260.37304506
+    ]
+  },
+  {
+    "dept": "1본부",
+    "team": "1본부 김지혜",
+    "vals": [
+      8010236.9,
+      13011561.7,
+      8632223.74,
+      null
+    ],
+    "removedAt": 3
+  },
+  {
+    "dept": "1본부",
+    "team": "1본부 이명균",
+    "vals": [
+      18826338.26,
+      15543936.81,
+      25818282.04,
+      16562515.986983033
+    ]
+  },
+  {
+    "dept": "2본부",
+    "team": "2본부 김민형",
+    "vals": [
+      13452285,
+      9573756,
+      7379555,
+      1525247.8444444453
+    ]
+  },
+  {
+    "dept": "2본부",
+    "team": "2본부 이정석",
+    "vals": [
+      7026730.93,
+      3549088.26,
+      3194932.16,
+      1296642.2928571429
+    ]
+  },
+  {
+    "dept": "2본부",
+    "team": "2본부 정아연",
+    "vals": [
+      5054521,
+      6935516,
+      5777346,
+      1364930.0799999996
+    ]
+  },
+  {
+    "dept": "2본부",
+    "team": "2본부 심은주",
+    "vals": [
+      8146997.58,
+      8532845.53,
+      7924703.92,
+      7517966.191666666
+    ]
+  },
+  {
+    "dept": "3본부",
+    "team": "3본부 정나윤",
+    "vals": [
+      13671568.82,
+      7299725.55,
+      13185822.65,
+      11177018.869582968
+    ]
+  },
+  {
+    "dept": "3본부",
+    "team": "3본부 박정빈",
+    "vals": [
+      12274381.4,
+      12777236.05,
+      13630227.23,
+      6993704.199999999
+    ]
+  },
+  {
+    "dept": "3본부",
+    "team": "3본부 한지나",
+    "vals": [
+      9072616.78,
+      6315087.52,
+      6728404.76,
+      8778007.75
+    ]
+  },
+  {
+    "dept": "3본부",
+    "team": "3본부 장하늘",
+    "vals": [
+      9777408.79,
+      7320732.66,
+      9659680.96,
+      12542794.985833395
+    ]
+  },
+  {
+    "dept": "4본부",
+    "team": "4본부 이소영",
+    "vals": [
+      18241767.81,
+      11232781.21,
+      18488124.23,
+      20809883.84088861
+    ]
+  },
+  {
+    "dept": "4본부",
+    "team": "4본부 최율산",
+    "vals": [
+      15946642.66,
+      13531664.3,
+      16090548.35,
+      10590960.890909093
+    ]
+  },
+  {
+    "dept": "4본부",
+    "team": "4본부 정진화",
+    "vals": [
+      12710574.46,
+      12145129.28,
+      12937610.51,
+      11187178.391666666
+    ]
+  },
+  {
+    "dept": "Global",
+    "team": "Global 최성연",
+    "vals": [
+      9972249.66,
+      9996677.29,
+      8860649.08,
+      7423696.466666668
+    ]
+  },
+  {
+    "dept": "Global",
+    "team": "Global 박은정",
+    "vals": [
+      3779275.01,
+      7507166.36,
+      4897250.3,
+      6045809.069243331
+    ]
+  },
+  {
+    "dept": "IP실",
+    "team": "NG 권민철",
+    "vals": [
+      13416928.55,
+      12637857.18,
+      11968814.18,
+      14145162.24005216
+    ]
+  },
+  {
+    "dept": "IP실",
+    "team": "NG 서영민",
+    "vals": [
+      4767098.48,
+      10170977.62,
+      27460407.89,
+      4158588.2293211804
+    ]
+  },
+  {
+    "dept": "IP실",
+    "team": "NG 이예슬",
+    "vals": [
+      17122645.75,
+      17901743.5,
+      13912797.8,
+      14241637.8
+    ]
+  },
+  {
+    "dept": "PD실",
+    "team": "PD 최선화",
+    "vals": [
+      10691462.49,
+      12556831.01,
+      12336959.46,
+      13838263.364688054
+    ]
+  },
+  {
+    "dept": "PD실",
+    "team": "PD 권현희",
+    "vals": [
+      10421123.45,
+      9159810.43,
+      7293273.07,
+      7512279.933333334
+    ]
+  },
+  {
+    "dept": "PD실",
+    "team": "PD 김동환",
+    "vals": [
+      15784024.7,
+      16277875.15,
+      23576661.58,
+      22440572.066526186
+    ]
+  },
+  {
+    "dept": "PD실",
+    "team": "PD 유안진",
+    "vals": [
+      14795142.23,
+      18523239.3,
+      12792310.34,
+      12888594.277867652
+    ]
+  }
+];
+const DEFAULT_MONTHS = ["1월","2월","3월","4월"];
+
+// ══════════════════════════════════════════════
+// MUTABLE DATA
+// ══════════════════════════════════════════════
+// teamMonthly 각 항목: { dept, team, vals[], removedAt? }
+//   removedAt: (0-based 월 인덱스) - 이 월부터 숨김. undefined 이면 활성
+let teamMonthly    = [];
+let teamCumulative = [];
+let deptMonthly    = [];
+let deptCumulative = [];
+let months = [];
+
+// ══════════════════════════════════════════════
+// COMPUTE
+// ══════════════════════════════════════════════
+
+// 팀 누적평균 계산 (removedAt 보존)
+function computeTeamCumulative(monthly) {
+  return monthly.map(t => ({
+    dept: t.dept,
+    team: t.team,
+    removedAt: t.removedAt,       // ← 보존 (렌더링 필터에서 사용)
+    vals: t.vals.map((_, i) => {
+      const slice = t.vals.slice(0, i + 1).filter(v => v != null);
+      return slice.length ? slice.reduce((a,b) => a+b, 0) / slice.length : null;
+    })
+  }));
+}
+
+// 본부별 월 평균: 해당 월에 활성인 팀만 포함
+function computeDeptMonthly(teams) {
+  const seenDepts = [];
+  teams.forEach(t => { if (!seenDepts.includes(t.dept)) seenDepts.push(t.dept); });
+  return seenDepts.map(dept => {
+    const dTeams = teams.filter(t => t.dept === dept);
+    const vals = months.map((_, mi) => {
+      // 해당 월에 활성인 팀만 집계
+      const active = dTeams.filter(t => t.removedAt === undefined || t.removedAt > mi);
+      const nonNull = active.map(t => t.vals[mi]).filter(v => v != null);
+      return nonNull.length ? nonNull.reduce((a,b) => a+b, 0) / nonNull.length : null;
+    });
+    return { dept, vals };
+  });
+}
+
+function computeDeptCumulative(deptMon) {
+  return deptMon.map(d => ({
+    dept: d.dept,
+    vals: d.vals.map((_, i) => {
+      const slice = d.vals.slice(0, i+1).filter(v => v != null);
+      return slice.length ? slice.reduce((a,b) => a+b, 0) / slice.length : null;
+    })
+  }));
+}
+
+function recomputeAll() {
+  teamCumulative = computeTeamCumulative(teamMonthly);
+  deptMonthly    = computeDeptMonthly(teamMonthly);
+  deptCumulative = computeDeptCumulative(deptMonthly);
+}
+
+// ══════════════════════════════════════════════
+// ACTIVE FILTER (현재 선택 월 기준으로 팀 필터)
+// ══════════════════════════════════════════════
+function filterActiveTeams(data) {
+  const mi = state.month - 1; // 0-based
+  return data.filter(t => t.removedAt === undefined || t.removedAt > mi);
+}
+
+// ══════════════════════════════════════════════
+// LOCAL STORAGE
+// ══════════════════════════════════════════════
+function saveToStorage() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ teamMonthly, months, savedAt: new Date().toISOString() }));
+    document.getElementById('storage-badge').style.display = 'inline-block';
+  } catch(e) { console.warn('저장 실패:', e); }
+}
+
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const p = JSON.parse(raw);
+    if (!p.teamMonthly || !p.months) return false;
+    teamMonthly = p.teamMonthly;
+    months = p.months;
+    document.getElementById('storage-badge').style.display = 'inline-block';
+    return true;
+  } catch(e) { return false; }
+}
+
+function resetToDefaults() {
+  if (!confirm('저장된 데이터를 모두 지우고 원본(1~4월)으로 초기화하시겠습니까?')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  teamMonthly = JSON.parse(JSON.stringify(DEFAULT_TEAM_MONTHLY));
+  months = [...DEFAULT_MONTHS];
+  document.getElementById('storage-badge').style.display = 'none';
+  recomputeAll();
+  state.month = 1;
+  rebuildMonthTabs();
+  renderAll();
+  showToast('기본 데이터로 초기화되었습니다', 'info');
+}
+
+// ══════════════════════════════════════════════
+// EXPORT AS HTML (공유용 저장)
+// ══════════════════════════════════════════════
+function exportAsHTML() {
+  const exportTeamMonthly = teamMonthly.map(t => {
+    const obj = { dept: t.dept, team: t.team, vals: [...t.vals] };
+    if (t.removedAt !== undefined) obj.removedAt = t.removedAt;
+    return obj;
+  });
+  let html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+  html = html.replace(
+    /const DEFAULT_TEAM_MONTHLY = \[[\s\S]*?\n\];/m,
+    'const DEFAULT_TEAM_MONTHLY = ' + JSON.stringify(exportTeamMonthly, null, 2) + ';'
+  );
+  html = html.replace(
+    /const DEFAULT_MONTHS = \[.*?\];/,
+    'const DEFAULT_MONTHS = ' + JSON.stringify(months) + ';'
+  );
+  html = html.replace(
+    /const STORAGE_KEY = '.*?';/,
+    "const STORAGE_KEY = 'adeff_2026_export_" + Date.now() + "';"
+  );
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const d = new Date();
+  const dateStr = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+  a.download = `adeff_dashboard_${dateStr}.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('공유용 HTML 파일이 다운로드됩니다 — 이 파일을 전달하면 됩니다', 'success');
+}
+
+// ══════════════════════════════════════════════
+// COLORS
+// ══════════════════════════════════════════════
+const deptColors = {
+  '1본부':'#6B3FA0','2본부':'#9B6FD0','3본부':'#B088E0',
+  '4본부':'#F47B20','Global':'#F9A55A','IP실':'#E03E3E','PD실':'#3D1A6E'
+};
+const trendColors = [
+  '#6B3FA0','#F47B20','#9B6FD0','#F9A55A','#3D1A6E','#B088E0',
+  '#E03E3E','#4CAF50','#2196F3','#FF9800','#9C27B0','#00BCD4',
+  '#FF5722','#8BC34A','#E91E63','#03A9F4','#FFC107','#607D8B',
+  '#795548','#009688','#CDDC39','#FF4081','#00E676','#651FFF','#FF6D00'
+];
+
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+let state = { month:1, mode:'monthly', trendMode:'monthly', trendView:'team', trendFilter:'all' };
+let teamChart = null, deptChart = null, trendChart = null;
+
+// ══════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════
+const fmt = v => v == null ? '-' : Math.round(v).toLocaleString('ko-KR');
+const fmtShort = v => v == null ? '-' : (Math.round(v/10000).toLocaleString('ko-KR') + '만');
+const isBelow = v => v != null && v < KPI;
+const yTickConfig = {
+  stepSize: 2000000,
+  callback: v => Number(v).toLocaleString('ko-KR') + '원',
+  font: { size: 11 }, color: '#6B5B8A'
+};
+
+// ══════════════════════════════════════════════
+// MONTH TABS (동적 생성)
+// ══════════════════════════════════════════════
+function rebuildMonthTabs() {
+  if (state.month > months.length) state.month = months.length || 1;
+  const c = document.getElementById('month-tabs-container');
+  c.innerHTML = months.map((m, i) => {
+    const mo = i + 1;
+    return `<button class="month-btn${mo === state.month ? ' active' : ''}" data-month="${mo}">${m}</button>`;
+  }).join('');
+  c.querySelectorAll('.month-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      c.querySelectorAll('.month-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.month = parseInt(btn.dataset.month);
+      renderAll();
+    });
+  });
+}
+
+// ══════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════
+function getVal(row) { return row.vals[state.month - 1]; }
+
+function renderSummary() {
+  const data = state.mode === 'monthly' ? deptMonthly : deptCumulative;
+  const mLabel = state.mode === 'monthly' ? `${state.month}월 해당월` : `1~${state.month}월 누적평균`;
+  document.getElementById('summary-period-label').textContent = mLabel;
+  const vals = data.map(d => getVal(d)).filter(v => v != null);
+  const avg = vals.length ? vals.reduce((a,b) => a+b, 0) / vals.length : 0;
+  document.getElementById('summary-avg-val').textContent = fmt(avg);
+  document.getElementById('summary-cards').innerHTML = data.map(d => {
+    const v = getVal(d);
+    const hi = v != null && v >= KPI;
+    return `<div class="summary-card ${hi ? 'highlight':''}">
+      <div class="summary-dept">${d.dept}</div>
+      <div class="summary-val">${fmtShort(v)}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderTeamTable() {
+  // 현재 월에 활성인 팀만 표시
+  const data = filterActiveTeams(state.mode === 'monthly' ? teamMonthly : teamCumulative);
+  document.getElementById('team-tbody').innerHTML = data.map(r => {
+    const v = getVal(r);
+    const below = isBelow(v);
+    const teamLabel = r.team.replace(r.dept.replace('실','').replace('본부','').trim(),'').trim() || r.team;
+    const badge = below
+      ? '<span class="red-badge">미달성</span>'
+      : '<span class="green-badge">달성</span>';
+    return `<tr class="${below ? 'row-below':''}">
+      <td>${r.dept}</td><td>${teamLabel}${badge}</td><td>${fmt(v)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderDeptTable() {
+  const data = state.mode === 'monthly' ? deptMonthly : deptCumulative;
+  document.getElementById('dept-tbody').innerHTML = data.map(d => {
+    const v = getVal(d);
+    const diff = v - KPI;
+    const diffStr = diff >= 0
+      ? `<span style="color:var(--purple);font-weight:700;">+${fmtShort(diff)}</span>`
+      : `<span style="color:var(--red);font-weight:700;">${fmtShort(diff)}</span>`;
+    return `<tr class="dept-row"><td>${d.dept}</td><td>${fmt(v)}</td><td>${diffStr}</td></tr>`;
+  }).join('');
+}
+
+function renderTeamChart() {
+  // 현재 월에 활성인 팀만 차트에 표시
+  const data = filterActiveTeams(state.mode === 'monthly' ? teamMonthly : teamCumulative);
+  const labels = data.map(r => r.team);
+  const vals = data.map(r => getVal(r));
+  const bgColors = vals.map(v => v == null ? '#ccc' : (v < KPI ? '#E03E3E' : '#6B3FA0'));
+  const mLabel = state.mode === 'monthly' ? `${state.month}월 해당월` : `1~${state.month}월 누적평균`;
+  document.getElementById('team-chart-label').textContent = mLabel;
+  if (teamChart) teamChart.destroy();
+  const ctx = document.getElementById('teamChart').getContext('2d');
+  teamChart = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'관리이익/n', data:vals, backgroundColor:bgColors, borderRadius:5, borderSkipped:false }] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>fmt(c.raw)+'원'}} },
+      scales:{
+        x:{ ticks:{font:{size:11,family:'Noto Sans KR'},color:'#6B5B8A',maxRotation:45}, grid:{display:false} },
+        y:{ ticks:yTickConfig, grid:{color:'#E4DCF5'} }
+      }
+    },
+    plugins:[{ afterDraw(chart) {
+      const {ctx:c, chartArea, scales} = chart;
+      if (!scales.y) return;
+      const y = scales.y.getPixelForValue(KPI);
+      c.save(); c.beginPath(); c.setLineDash([6,4]); c.strokeStyle='#E03E3E'; c.lineWidth=2;
+      c.moveTo(chartArea.left,y); c.lineTo(chartArea.right,y); c.stroke();
+      c.setLineDash([]); c.fillStyle='#E03E3E'; c.font='bold 11px Noto Sans KR';
+      c.fillText('KPI 13,000,000원', chartArea.right-130, y-5); c.restore();
+    }}]
+  });
+}
+
+function renderDeptChart() {
+  const data = state.mode === 'monthly' ? deptMonthly : deptCumulative;
+  const labels = data.map(d => d.dept);
+  const vals = data.map(d => getVal(d));
+  const avg = vals.filter(Boolean).reduce((a,b)=>a+b,0) / (vals.filter(Boolean).length || 1);
+  const mLabel = state.mode === 'monthly' ? `${state.month}월 해당월` : `1~${state.month}월 누적평균`;
+  document.getElementById('dept-chart-label').textContent = mLabel;
+  if (deptChart) deptChart.destroy();
+  const ctx = document.getElementById('deptChart').getContext('2d');
+  deptChart = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'본부별 관리이익/n', data:vals, backgroundColor:labels.map(l=>deptColors[l]||'#9B6FD0'), borderRadius:6, borderSkipped:false }] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>fmt(c.raw)+'원'}} },
+      scales:{
+        x:{ ticks:{font:{size:12,family:'Noto Sans KR'},color:'#3D1A6E'}, grid:{display:false} },
+        y:{ ticks:yTickConfig, grid:{color:'#E4DCF5'} }
+      }
+    },
+    plugins:[{ afterDraw(chart) {
+      const {ctx:c, chartArea, scales} = chart;
+      if (!scales.y) return;
+      const y = scales.y.getPixelForValue(avg);
+      c.save(); c.beginPath(); c.strokeStyle='#6B3FA0'; c.lineWidth=2;
+      c.moveTo(chartArea.left,y); c.lineTo(chartArea.right,y); c.stroke();
+      c.fillStyle='#6B3FA0'; c.font='bold 11px Noto Sans KR';
+      c.fillText(`평균 ${fmtShort(avg)}`, chartArea.right-90, y-5); c.restore();
+    }}]
+  });
+}
+
+function buildTrendFilterOptions() {
+  const sel = document.getElementById('trend-filter');
+  const source = state.trendView === 'team' ? teamMonthly : deptMonthly;
+  sel.innerHTML = '<option value="all">전체</option>';
+  const names = [...new Set(source.map(r => state.trendView === 'team' ? r.team : r.dept))];
+  names.forEach(n => {
+    const opt = document.createElement('option');
+    opt.value = n; opt.textContent = n;
+    if (n === state.trendFilter) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function renderTrendChart() {
+  const source = state.trendView === 'team'
+    ? (state.trendMode === 'monthly' ? teamMonthly : teamCumulative)
+    : (state.trendMode === 'monthly' ? deptMonthly  : deptCumulative);
+  const nameKey = state.trendView === 'team' ? 'team' : 'dept';
+  const maxMonth = months.length;
+  const labels = months.slice(0, maxMonth);
+  let rows = source;
+  if (state.trendFilter !== 'all') rows = source.filter(r => r[nameKey] === state.trendFilter);
+
+  const datasets = rows.map((r, i) => {
+    // removedAt 이후 데이터는 null 처리 → 선이 자연스럽게 끊어짐
+    const capIdx = (r.removedAt !== undefined) ? r.removedAt : maxMonth;
+    const cappedData = r.vals.slice(0, maxMonth).map((v, mi) => mi < capIdx ? v : null);
+    return {
+      label: r[nameKey],
+      data: cappedData,
+      borderColor: trendColors[i % trendColors.length],
+      backgroundColor: trendColors[i % trendColors.length] + '18',
+      borderWidth:2, pointRadius:4, pointHoverRadius:6,
+      tension:0.3, fill:false,
+      spanGaps: false,  // null 구간은 선 끊어짐 (퇴장 시 선이 종료됨)
+    };
+  });
+
+  if (state.trendView === 'team') {
+    datasets.push({
+      label:'KPI 기준선', data:Array(maxMonth).fill(KPI),
+      borderColor:'#E03E3E', borderWidth:1.5, borderDash:[6,4],
+      pointRadius:0, fill:false, tension:0, spanGaps:true,
+    });
+  }
+
+  if (trendChart) trendChart.destroy();
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  trendChart = new Chart(ctx, {
+    type:'line', data:{ labels, datasets },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{ position:'bottom', labels:{font:{size:11,family:'Noto Sans KR'},color:'#6B5B8A',boxWidth:12,padding:10} },
+        tooltip:{ callbacks:{ label:c => c.dataset.label+': '+fmt(c.raw)+'원' } }
+      },
+      scales:{
+        x:{ ticks:{font:{size:12,family:'Noto Sans KR'},color:'#3D1A6E'}, grid:{color:'#E4DCF5'} },
+        y:{ ticks:yTickConfig, grid:{color:'#E4DCF5'} }
+      }
+    }
+  });
+}
+
+function renderAll() {
+  renderSummary(); renderTeamTable(); renderDeptTable();
+  renderTeamChart(); renderDeptChart();
+  buildTrendFilterOptions(); renderTrendChart();
+}
+
+// ══════════════════════════════════════════════
+// TEAM MATCHING (유연한 이름 매칭)
+// ══════════════════════════════════════════════
+function findTeamEntry(dept, team) {
+  const t = team.trim(), d = dept.trim();
+  return (
+    teamMonthly.find(e => e.team.trim() === t) ||
+    teamMonthly.find(e => e.team.trim() === `${d} ${t}`.trim()) ||
+    teamMonthly.find(e => e.team.replace(e.dept,'').trim() === t && (d === '' || e.dept === d)) ||
+    teamMonthly.find(e => e.team.includes(t) || t.includes(e.team)) ||
+    null
+  );
+}
+
+// ══════════════════════════════════════════════
+// UPLOAD: EXCEL PARSING
+// ══════════════════════════════════════════════
+let pendingUploadRows = null;
+
+function parseExcelFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, { type:'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(sheet, { header:1, defval:'' });
+        if (raw.length < 2) { reject('데이터가 없습니다.'); return; }
+        const headers = raw[0].map(h => String(h).trim().toLowerCase());
+        let deptCol = headers.findIndex(h => h.includes('본부') || h.includes('dept'));
+        let teamCol = headers.findIndex(h => h.includes('팀') || h.includes('담당') || h.includes('이름'));
+        let valCol  = headers.findIndex(h => h.includes('이익') || h.includes('kpi') || h.includes('금액'));
+        if (deptCol < 0) deptCol = 0;
+        if (teamCol < 0) teamCol = 1;
+        if (valCol  < 0) valCol  = 2;
+        const rows = [];
+        for (let i = 1; i < raw.length; i++) {
+          const row = raw[i];
+          const team = String(row[teamCol] || '').trim();
+          const dept = String(row[deptCol] || '').trim();
+          if (!team) continue;
+          const rawVal = row[valCol];
+          const val = typeof rawVal === 'number' ? rawVal : parseFloat(String(rawVal).replace(/[^0-9.-]/g,''));
+          if (isNaN(val)) continue;
+          rows.push({ dept, team, val });
+        }
+        if (!rows.length) { reject('유효한 데이터를 찾을 수 없습니다.\n헤더(본부/팀/관리이익/n)를 확인해주세요.'); return; }
+        resolve(rows);
+      } catch(e) { reject('파일 파싱 오류: ' + e.message); }
+    };
+    reader.onerror = () => reject('파일을 읽을 수 없습니다.');
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+// ══════════════════════════════════════════════
+// UPLOAD: APPLY DATA
+// ══════════════════════════════════════════════
+function applyUploadData(monthIdx, rows) {
+  // months 배열 확장
+  while (months.length <= monthIdx) months.push(`${months.length + 1}월`);
+
+  // 기존 팀 vals 확장
+  teamMonthly.forEach(t => {
+    while (t.vals.length <= monthIdx) t.vals.push(null);
+  });
+
+  // 이번 업로드에 포함된 팀의 canonical 이름 집합
+  const uploadedTeamKeys = new Set();
+  let matched = 0, added = 0;
+
+  rows.forEach(({ dept, team, val }) => {
+    const existing = findTeamEntry(dept, team);
+    if (existing) {
+      while (existing.vals.length <= monthIdx) existing.vals.push(null);
+      existing.vals[monthIdx] = val;
+      // 이전에 제외됐다가 다시 등장한 경우 → removedAt 해제
+      if (existing.removedAt !== undefined && existing.removedAt >= monthIdx) {
+        delete existing.removedAt;
+      }
+      uploadedTeamKeys.add(existing.team);
+      matched++;
+    } else {
+      // 신규 팀
+      const newVals = Array(monthIdx).fill(null);
+      newVals.push(val);
+      const newTeam = { dept: dept || '기타', team, vals: newVals };
+      teamMonthly.push(newTeam);
+      uploadedTeamKeys.add(team);
+      added++;
+    }
+  });
+
+  // ── 핵심: 이번 업로드에 없는 기존 팀 → removedAt 마킹
+  let removed = 0;
+  if (monthIdx > 0) {
+    teamMonthly.forEach(t => {
+      if (uploadedTeamKeys.has(t.team)) return;          // 이번 업로드에 있음
+      if (t.removedAt !== undefined) return;             // 이미 제외 처리됨
+      // 이전 월(0~monthIdx-1)에 실제 데이터가 하나라도 있으면 → 이번 달부터 제외
+      const hadPrevData = t.vals.slice(0, monthIdx).some(v => v != null);
+      if (hadPrevData) {
+        t.removedAt = monthIdx;
+        removed++;
+      }
+    });
+  }
+
+  recomputeAll();
+  saveToStorage();
+
+  if (state.month > months.length) state.month = months.length;
+  state.month = monthIdx + 1; // 업로드한 월로 자동 이동
+
+  rebuildMonthTabs();
+  renderAll();
+  return { matched, added, removed, total: rows.length };
+}
+
+// ══════════════════════════════════════════════
+// UPLOAD: TEMPLATE DOWNLOAD
+// ══════════════════════════════════════════════
+function downloadTemplate() {
+  const nextMo = months.length + 1;
+  const header = ['본부', '팀', `관리이익/n (${nextMo}월 입력)`];
+  // 현재 활성인 팀만 서식에 포함 (제외된 팀은 서식에서도 제외)
+  const activeMi = months.length - 1; // 가장 최신 월 기준
+  const activeTeams = teamMonthly.filter(t => t.removedAt === undefined || t.removedAt > activeMi);
+  const dataRows = activeTeams.map(t => [t.dept, t.team, '']);
+  const ws = XLSX.utils.aoa_to_sheet([header, ...dataRows]);
+  ws['!cols'] = [{ wch:10 }, { wch:18 }, { wch:20 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '관리이익');
+  XLSX.writeFile(wb, `adeff_${nextMo}월_관리이익_서식.xlsx`);
+}
+
+// ══════════════════════════════════════════════
+// UPLOAD: PREVIEW RENDER (파일 선택 or 월 변경 시 재계산)
+// ══════════════════════════════════════════════
+function renderUploadPreview(rows) {
+  const monthIdx = parseInt(document.getElementById('upload-month-select').value) - 1;
+  const monthLabel = `${monthIdx + 1}월`;
+
+  let matchedCnt = 0, newCnt = 0;
+  const uploadedTeamKeys = new Set();
+
+  // 업로드 테이블 미리보기
+  const tbody = document.getElementById('preview-tbody');
+  tbody.innerHTML = rows.map(({ dept, team, val }) => {
+    const e = findTeamEntry(dept, team);
+    const isNew = !e;
+    if (isNew) { newCnt++; uploadedTeamKeys.add(team); }
+    else { matchedCnt++; uploadedTeamKeys.add(e.team); }
+    return `<tr class="${isNew ? 'new-team':''}">
+      <td>${dept}</td><td>${team}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;">${Math.round(val).toLocaleString('ko-KR')}</td>
+      <td><span class="status-pill ${isNew ? 'status-new':'status-matched'}">${isNew ? '✨ 신규':'✅ 기존'}</span></td>
+    </tr>`;
+  }).join('');
+
+  // ── 제외될 팀 계산 (이전 월 데이터 있고 이번 업로드에 없는 팀)
+  const toBeRemoved = (monthIdx > 0) ? teamMonthly.filter(t => {
+    if (uploadedTeamKeys.has(t.team)) return false;
+    if (t.removedAt !== undefined && t.removedAt <= monthIdx) return false; // 이미 제외됨
+    return t.vals.slice(0, monthIdx).some(v => v != null);
+  }) : [];
+
+  // 통계
+  let statsText = `기존 ${matchedCnt}명 갱신`;
+  if (newCnt > 0) statsText += ` · 신규 ${newCnt}명 추가`;
+  if (toBeRemoved.length > 0) statsText += ` · ${toBeRemoved.length}명 제외`;
+  document.getElementById('preview-stats').textContent = statsText;
+  document.getElementById('preview-section').style.display = 'block';
+
+  // 제외 팀 섹션
+  const removedSection = document.getElementById('removed-section');
+  if (toBeRemoved.length > 0) {
+    document.getElementById('removed-month-label').textContent = monthLabel;
+    document.getElementById('removed-pills').innerHTML = toBeRemoved.map(t =>
+      `<span class="removed-pill">✕ ${t.team}</span>`
+    ).join('');
+    removedSection.style.display = 'flex';
+  } else {
+    removedSection.style.display = 'none';
+  }
+
+  document.getElementById('btn-confirm-upload').disabled = false;
+}
+
+// ══════════════════════════════════════════════
+// UPLOAD: MODAL UI
+// ══════════════════════════════════════════════
+function resetUploadModal() {
+  document.getElementById('file-input').value = '';
+  document.getElementById('drop-zone').className = 'drop-zone';
+  document.getElementById('drop-icon').textContent = '📂';
+  document.getElementById('drop-text').innerHTML = '<span>클릭</span>하거나 파일을 여기에 드래그하세요';
+  document.getElementById('drop-hint').textContent = '.xlsx / .xls 파일 지원';
+  document.getElementById('preview-section').style.display = 'none';
+  document.getElementById('preview-tbody').innerHTML = '';
+  document.getElementById('preview-stats').textContent = '';
+  document.getElementById('removed-section').style.display = 'none';
+  document.getElementById('removed-pills').innerHTML = '';
+  document.getElementById('btn-confirm-upload').disabled = true;
+  pendingUploadRows = null;
+}
+
+function openUploadModal() {
+  const nextMo = Math.min(months.length + 1, 12);
+  document.getElementById('upload-month-select').value = nextMo;
+  resetUploadModal();
+  document.getElementById('upload-modal').style.display = 'flex';
+}
+
+function closeUploadModal() {
+  document.getElementById('upload-modal').style.display = 'none';
+}
+
+async function handleFile(file) {
+  if (!file) return;
+  if (!file.name.match(/\.xlsx?$/i)) { showToast('.xlsx 또는 .xls 파일만 업로드 가능합니다', 'error'); return; }
+
+  const dz = document.getElementById('drop-zone');
+  dz.className = 'drop-zone';
+  document.getElementById('drop-icon').textContent = '⏳';
+  document.getElementById('drop-text').innerHTML = '파일 읽는 중...';
+  document.getElementById('drop-hint').textContent = '';
+  document.getElementById('preview-section').style.display = 'none';
+  document.getElementById('removed-section').style.display = 'none';
+  document.getElementById('btn-confirm-upload').disabled = true;
+
+  try {
+    const rows = await parseExcelFile(file);
+    pendingUploadRows = rows;
+
+    dz.className = 'drop-zone has-file';
+    document.getElementById('drop-icon').textContent = '✅';
+    document.getElementById('drop-text').innerHTML = `<strong>${file.name}</strong>`;
+    document.getElementById('drop-hint').textContent = `${rows.length}개 행 인식됨`;
+
+    renderUploadPreview(rows);
+  } catch(err) {
+    dz.className = 'drop-zone';
+    document.getElementById('drop-icon').textContent = '❌';
+    document.getElementById('drop-text').innerHTML = String(err);
+    document.getElementById('drop-hint').textContent = '다시 시도해주세요';
+    showToast(String(err), 'error');
+  }
+}
+
+// ══════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════
+let toastTimer = null;
+function showToast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast toast-${type}`;
+  el.style.display = 'block';
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.style.display = 'none'; }, 3500);
+}
+
+// ══════════════════════════════════════════════
+// EVENT HANDLERS
+// ══════════════════════════════════════════════
+document.querySelectorAll('[data-mode]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-mode]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active'); state.mode = btn.dataset.mode; renderAll();
+  });
+});
+document.querySelectorAll('[data-trend]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-trend]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active'); state.trendMode = btn.dataset.trend; renderTrendChart();
+  });
+});
+document.querySelectorAll('[data-view]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-view]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active'); state.trendView = btn.dataset.view;
+    state.trendFilter = 'all'; buildTrendFilterOptions(); renderTrendChart();
+  });
+});
+document.getElementById('trend-filter').addEventListener('change', e => {
+  state.trendFilter = e.target.value; renderTrendChart();
+});
+
+// 상단 버튼
+document.getElementById('btn-open-upload').addEventListener('click', openUploadModal);
+document.getElementById('btn-reset').addEventListener('click', resetToDefaults);
+document.getElementById('btn-export').addEventListener('click', exportAsHTML);
+
+// 모달 닫기
+document.getElementById('modal-close-btn').addEventListener('click', closeUploadModal);
+document.getElementById('btn-cancel-upload').addEventListener('click', closeUploadModal);
+document.getElementById('upload-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeUploadModal();
+});
+
+// 서식 다운로드
+document.getElementById('btn-template-download').addEventListener('click', downloadTemplate);
+
+// 파일 입력
+const fileInput = document.getElementById('file-input');
+const dropZone  = document.getElementById('drop-zone');
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') fileInput.click(); });
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+
+// 월 선택 변경 시 → 파일이 이미 로드됐으면 제외 팀 목록 즉시 재계산
+document.getElementById('upload-month-select').addEventListener('change', () => {
+  if (pendingUploadRows) renderUploadPreview(pendingUploadRows);
+});
+
+// 업로드 확인
+document.getElementById('btn-confirm-upload').addEventListener('click', () => {
+  if (!pendingUploadRows) return;
+  const monthIdx = parseInt(document.getElementById('upload-month-select').value) - 1;
+  const result = applyUploadData(monthIdx, pendingUploadRows);
+  closeUploadModal();
+  let msg = `${monthIdx+1}월 업로드 완료 — ${result.matched}명 갱신`;
+  if (result.added > 0) msg += ` · ${result.added}명 신규`;
+  if (result.removed > 0) msg += ` · ${result.removed}명 제외`;
+  showToast(msg, 'success');
+});
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+(function init() {
+  const loaded = loadFromStorage();
+  if (!loaded) {
+    teamMonthly = JSON.parse(JSON.stringify(DEFAULT_TEAM_MONTHLY));
+    months = [...DEFAULT_MONTHS];
+  }
+  recomputeAll();
+  rebuildMonthTabs();
+  renderAll();
+})();
+</script>
+
+
+</body></html>
